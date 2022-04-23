@@ -31,25 +31,25 @@ namespace Tobias_Padle.Services
                 return rounds;
             }
 
-            var restTeams = new List<Player>(players.Skip(1));
-            var teamsCount = players.Count;
+            var restPlayers = new List<Player>(players.Skip(1));
+            var playersCount = players.Count;
 
             // Jag erkänner att inte förstår allt som händer här, men länkar nere till en Wikipeida om det så du kanske förstår mer än mig. 
             // Koden hittade jag på stacköverflow och anpassade i slutet för att passa mina modeller
-            for (var round = 0; round < teamsCount - 1; round++)
+            for (var round = 0; round < playersCount - 1; round++)
             {
-                if (restTeams[round % restTeams.Count]?.Equals(default) == false)
+                if (restPlayers[round % restPlayers.Count]?.Equals(default) == false)
                 {
-                    pairs.Add((round, players[0], restTeams[round % restTeams.Count]));
+                    pairs.Add((round, players[0], restPlayers[round % restPlayers.Count]));
                 }
 
-                for (var index = 1; index < teamsCount / 2; index++)
+                for (var index = 1; index < playersCount / 2; index++)
                 {
-                    var firstTeam = restTeams[(round + index) % restTeams.Count];
-                    var secondTeam = restTeams[(round + restTeams.Count - index) % restTeams.Count];
-                    if (firstTeam?.Equals(default) == false && secondTeam?.Equals(default) == false)
+                    var firstPlayer = restPlayers[(round + index) % restPlayers.Count];
+                    var secondPlayer = restPlayers[(round + restPlayers.Count - index) % restPlayers.Count];
+                    if (firstPlayer?.Equals(default) == false && secondPlayer?.Equals(default) == false)
                     {
-                        pairs.Add((round, firstTeam, secondTeam));
+                        pairs.Add((round, firstPlayer, secondPlayer));
                     }
                 }
             }
