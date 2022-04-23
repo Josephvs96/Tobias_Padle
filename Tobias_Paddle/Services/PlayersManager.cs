@@ -1,16 +1,20 @@
-﻿using Tobias_Padle.Models;
+﻿using Tobias_Padle.Extentions;
+using Tobias_Padle.Models;
 
 namespace Tobias_Padle.Services
 {
     public class PlayersManager
     {
-        public IEnumerable<Player> Players { get; private set; }
+        public List<Player> Players { get; private set; }
         public int PlayersCount { get; private set; }
 
         public PlayersManager()
         {
             PlayersCount = 12;
             Players = CreatePlayers();
+
+            // Extension method för att random sortera players listan för första gången. 
+            Players.Shuffle();
         }
 
         private List<Player> CreatePlayers()

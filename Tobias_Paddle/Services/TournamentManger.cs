@@ -15,105 +15,76 @@ namespace Tobias_Padle.Services
         public void CreateTournamenet()
         {
             var tournament = new Tournament();
-            tournament.Rounds = CreateTournamenetRounds();
+            tournament.Rounds = CreateTournamenetRounds(_playersManager.Players);
             Tournament = tournament;
         }
 
-        private List<Round> CreateTournamenetRounds()
+        public List<Round> CreateTournamenetRounds(IList<Player> players)
         {
-            var roundList = new List<Round>();
+            var rounds = new List<Round>();
 
-            // Number of rounds is n-1 where n is number of players
-            var roundCount = _playersManager.PlayersCount - 1;
-
-            for (var i = 1; i <= roundCount; i++)
+            // Här kommer det vara en lista av alla möjliga par de kommer innehålla vilket runda det är, samt paret
+            // Tuple av (roundNumber, Player1, Player2)
+            var pairs = new List<(int, Player, Player)>();
+            if (players == null || players.Count < 2)
             {
-                var round = CreateRound(i);
-                roundList.Add(round);
+                return rounds;
             }
 
-            return roundList;
-        }
+            var restTeams = new List<Player>(players.Skip(1));
+            var teamsCount = players.Count;
 
-        private Round CreateRound(int roundNumber)
-        {
-            Round round = new Round();
-            round.RoundNumber = roundNumber;
-            round.Matchs = CreateRoundMatches(roundNumber);
-
-            foreach (var match in round.Matchs)
+            // Jag erkänner att inte förstår allt som händer här, men länkar nere till en Wikipeida om det så du kanske förstår mer än mig. 
+            // Koden hittade jag på stacköverflow och anpassade i slutet för att passa mina modeller
+            for (var round = 0; round < teamsCount - 1; round++)
             {
-                Console.WriteLine($"R{roundNumber}M{round.Matchs.IndexOf(match) + 1} {match.HomeTeam.Player1}-{match.HomeTeam.Player2} VS {match.AwayTeam.Player1}-{match.AwayTeam.Player2}");
-            }
-            Console.WriteLine("\n");
-            return round;
-        }
+                if (restTeams[round % restTeams.Count]?.Equals(default) == false)
+                {
+                    pairs.Add((round, players[0], restTeams[round % restTeams.Count]));
+                }
 
-        private List<Match> CreateRoundMatches(int roundNumber)
-        {
-            var matches = new List<Match>();
-            var numberOfPlayersPerMatch = 4;
-            var numberOfMatchesPerRound = _playersManager.PlayersCount / numberOfPlayersPerMatch;
-            // Here i create a new list to be able to manipulate the players to choose from
-            // this round without effecting the main players list
-            var playersListToChooseFromThisRound = new List<Player>();
-            playersListToChooseFromThisRound.AddRange(_playersManager.Players);
-
-            for (var i = 0; i < numberOfMatchesPerRound; i++)
-            {
-                var match = new Match();
-                match.HomeTeam = CreateTeam(playersListToChooseFromThisRound, roundNumber);
-                match.AwayTeam = CreateTeam(playersListToChooseFromThisRound, roundNumber);
-
-                matches.Add(match);
+                for (var index = 1; index < teamsCount / 2; index++)
+                {
+                    var firstTeam = restTeams[(round + index) % restTeams.Count];
+                    var secondTeam = restTeams[(round + restTeams.Count - index) % restTeams.Count];
+                    if (firstTeam?.Equals(default) == false && secondTeam?.Equals(default) == false)
+                    {
+                        pairs.Add((round, firstTeam, secondTeam));
+                    }
+                }
             }
 
-            return matches;
+            // Här loopar jag genom alla par som skapades men jag gruppera dem enligt första värdet (roundanummer)
+            // där får man 6 par med varje gruppering dvs 6 lag vilker resultera i 3 matcher
+            foreach (var tournamentRound in pairs.GroupBy(p => p.Item1))
+            {
+                var round = new Round();
+                round.RoundNumber = tournamentRound.Key + 1;
+                round.Matchs = new List<Match>();
+
+                for (int i = 0; i < players.Count / 4; i++)
+                {
+                    var match = new Match();
+                    var teams = tournamentRound.Skip(i * 2).Take(2).Select(p => new Team { Player1 = p.Item2, Player2 = p.Item3 }).ToList();
+                    match.HomeTeam = teams[0];
+                    match.AwayTeam = teams[1];
+                    round.Matchs.Add(match);
+                }
+
+                foreach (var match in round.Matchs)
+                {
+                    Console.WriteLine($"R{round.RoundNumber}M{round.Matchs.IndexOf(match) + 1} {match.HomeTeam.Player1}-{match.HomeTeam.Player2} VS {match.AwayTeam.Player1}-{match.AwayTeam.Player2}");
+                }
+                Console.WriteLine("\n");
+
+                rounds.Add(round);
+            }
+            return rounds;
         }
 
-        private Team CreateTeam(List<Player> playersListToChooseFromThisRound, int roundNumber)
-        {
-            var team = new Team();
-            team.Player1 = GetRandomPlayer1(playersListToChooseFromThisRound, roundNumber);
-            team.Player2 = GetRandomPlayer2(team.Player1, playersListToChooseFromThisRound, roundNumber);
-            return team;
-        }
-
-        private Player GetRandomPlayer1(List<Player> playersListToChooseFromThisRound, int roundNumber)
-        {
-            var playersToChooseFrom = new List<Player>();
-            playersToChooseFrom.AddRange(playersListToChooseFromThisRound.Where(p => p.AlreadyPlayedWithPlayers.Count < roundNumber));
-
-            var random = new Random(Guid.NewGuid().GetHashCode());
-            var randomPlayerIndex = random.Next(playersToChooseFrom.Count - 1);
-            var randomPlayerId = playersToChooseFrom[randomPlayerIndex].Id;
-
-            var playerFromRoundList = playersListToChooseFromThisRound.First(p => p.Id == randomPlayerId);
-            playersListToChooseFromThisRound.Remove(playerFromRoundList);
-
-            var player = _playersManager.Players.First(p => p.Id == randomPlayerId);
-            return player;
-        }
-
-        private Player GetRandomPlayer2(Player player1, List<Player> playersListToChooseFromThisRound, int roundNumber)
-        {
-            var playersListWithoutPlayersThatPlayer1PlayedWith = playersListToChooseFromThisRound
-                .Where(p => p.AlreadyPlayedWithPlayers.Count < roundNumber)
-                .Where(p => !player1.AlreadyPlayedWithPlayers.Contains(p))
-                .ToList();
-
-            var random = new Random(Guid.NewGuid().GetHashCode());
-            var randomPlayerIndex = random.Next(playersListWithoutPlayersThatPlayer1PlayedWith.Count - 1);
-            var randomPlayerId = playersListWithoutPlayersThatPlayer1PlayedWith[randomPlayerIndex].Id;
-
-            var playerFromCurrentRoundList = playersListToChooseFromThisRound.First(p => p.Id == randomPlayerId);
-            playersListToChooseFromThisRound.Remove(playerFromCurrentRoundList);
-
-            var player2 = _playersManager.Players.First(p => p.Id == randomPlayerId);
-            player1.AlreadyPlayedWithPlayers.Add(player2);
-            player2.AlreadyPlayedWithPlayers.Add(player1);
-
-            return player2;
-        }
+        // Man kan använda round robin algoritm för lösa detta problem
+        // https://en.wikipedia.org/wiki/Round-robin_tournament
+        // https://stackoverflow.com/a/60059572
+        // https://sv.wikipedia.org/wiki/Modul%C3%A4r_aritmetik
     }
 }
